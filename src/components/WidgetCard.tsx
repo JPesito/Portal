@@ -1,6 +1,8 @@
-import { ArrowDownTrayIcon } from '@heroicons/react/24/solid';
+import { ArrowDownTrayIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 
+// Agregamos una prop 'onEdit' para abrir el modal
 interface WidgetProps {
+  id: string; // Necesitamos el ID para editar
   title: string;
   description: string;
   gif_url: string;
@@ -8,29 +10,39 @@ interface WidgetProps {
   category: string;
 }
 
-export default function WidgetCard({ data }: { data: WidgetProps }) {
+export default function WidgetCard({ data, onEdit }: { data: WidgetProps, onEdit?: (widget: any) => void }) {
   return (
-    <div className="group relative bg-slate-900/50 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden hover:border-indigo-500/50 transition-all duration-300 hover:shadow-[0_0_30px_-5px_rgba(99,102,241,0.3)]">
+    <div className="group relative bg-white rounded-2xl overflow-hidden border border-slate-200 transition-all duration-300 hover:shadow-xl hover:shadow-teal-500/10 hover:-translate-y-1">
       
+      {/* Botón de Edición (Solo visible si pasamos la función onEdit) */}
+      {onEdit && (
+        <button 
+          onClick={(e) => { e.preventDefault(); onEdit(data); }}
+          className="absolute top-3 right-3 z-30 p-2 bg-white/90 backdrop-blur text-slate-500 hover:text-teal-600 rounded-full shadow-sm border border-slate-100 opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <PencilSquareIcon className="w-5 h-5" />
+        </button>
+      )}
+
       {/* Contenedor GIF */}
-      <div className="aspect-video w-full overflow-hidden relative bg-slate-950">
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent z-10 opacity-60" />
+      <div className="aspect-video w-full overflow-hidden relative bg-slate-100">
+        <div className="absolute inset-0 bg-teal-900/0 group-hover:bg-teal-900/10 transition-colors z-10" />
         <img 
           src={data.gif_url} 
           alt={data.title} 
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+          className="w-full h-full object-cover"
         />
-        <span className="absolute top-2 right-2 z-20 bg-black/60 text-xs px-2 py-1 rounded-md text-slate-300 border border-white/10 backdrop-blur">
+        <span className="absolute bottom-2 left-2 z-20 bg-white/90 text-xs font-semibold px-2 py-1 rounded text-teal-700 shadow-sm">
             {data.category}
         </span>
       </div>
 
       {/* Info */}
       <div className="p-5">
-        <h3 className="text-lg font-bold text-white mb-1 group-hover:text-indigo-400 transition-colors">
+        <h3 className="text-lg font-bold text-slate-800 mb-1 group-hover:text-teal-600 transition-colors">
           {data.title}
         </h3>
-        <p className="text-sm text-slate-400 mb-4 line-clamp-2 leading-relaxed">
+        <p className="text-sm text-slate-500 mb-4 line-clamp-2 leading-relaxed">
           {data.description}
         </p>
         
@@ -38,10 +50,10 @@ export default function WidgetCard({ data }: { data: WidgetProps }) {
           href={data.download_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 w-full py-2.5 bg-white/5 hover:bg-indigo-600 text-white text-sm font-medium rounded-lg transition-all border border-white/5 hover:border-transparent"
+          className="flex items-center justify-center gap-2 w-full py-2.5 bg-teal-50 hover:bg-teal-100 text-teal-700 text-sm font-medium rounded-xl transition-all border border-teal-100"
         >
-          <ArrowDownTrayIcon className="w-4 h-4" />
-          Descargar Recurso
+          <ArrowDownTrayIcon className="w-5 h-5" />
+          Descargar
         </a>
       </div>
     </div>

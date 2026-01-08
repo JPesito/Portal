@@ -1,43 +1,76 @@
-"use client"; // Obligatorio para interactividad
+"use client"; 
 import { useState } from 'react';
 import WidgetCard from './WidgetCard';
+import AdminModal from './AdminModal'; // Importamos el modal
+import { PlusIcon } from '@heroicons/react/24/solid';
 
 export default function WidgetGrid({ initialWidgets }: { initialWidgets: any[] }) {
   const [search, setSearch] = useState('');
   
-  // Filtrado eficiente en tiempo real
+  // Estados para el modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingWidget, setEditingWidget] = useState(null);
+
   const filtered = initialWidgets.filter(w => 
     w.title.toLowerCase().includes(search.toLowerCase()) ||
     w.category.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Función para abrir el modal en modo Crear
+  const openCreateModal = () => {
+    setEditingWidget(null);
+    setIsModalOpen(true);
+  };
+
+  // Función para abrir el modal en modo Editar
+  const openEditModal = (widget: any) => {
+    setEditingWidget(widget);
+    setIsModalOpen(true);
+  };
+
   return (
     <section className="max-w-7xl mx-auto px-6 py-12">
-      {/* Buscador Moderno */}
-      <div className="relative max-w-xl mx-auto mb-16">
-        <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-          <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+      
+      {/* Cabecera con Buscador y Botón Crear */}
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-12">
+        
+        {/* Buscador Estilo Light */}
+        <div className="relative w-full max-w-lg">
+            <input 
+              type="text"
+              placeholder="Buscar..."
+              className="w-full pl-5 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+              onChange={(e) => setSearch(e.target.value)}
+            />
         </div>
-        <input 
-          type="text"
-          placeholder="Busca por nombre o categoría..."
-          className="w-full pl-12 pr-4 py-4 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all shadow-lg"
-          onChange={(e) => setSearch(e.target.value)}
-        />
+
+        {/* Botón Flotante de Crear */}
+        <button 
+            onClick={openCreateModal}
+            className="flex items-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg shadow-teal-500/20 transition-transform hover:scale-105"
+        >
+            <PlusIcon className="w-5 h-5" />
+            Nuevo Widget
+        </button>
       </div>
 
-      {/* Grid Responsivo */}
+      {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map((widget) => (
-          <WidgetCard key={widget.id} data={widget} />
+          <WidgetCard 
+            key={widget.id} 
+            data={widget} 
+            onEdit={openEditModal} // Pasamos la función de editar
+          />
         ))}
       </div>
 
-      {filtered.length === 0 && (
-        <div className="text-center py-20">
-            <p className="text-slate-500">No encontramos widgets con ese nombre.</p>
-        </div>
-      )}
+      {/* El Modal Renderizado */}
+      <AdminModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        editingWidget={editingWidget}
+      />
     </section>
   );
 }
