@@ -35,3 +35,10 @@ export async function loginAction(formData: FormData) {
     return { error: "Acceso Denegado: Clave incorrecta" };
   }
 }
+
+export async function logoutAction() {
+  // Borramos la cookie de sesión
+  (await cookies()).delete("session_access");
+  // Redirigimos al login
+  redirect("/login");
+}
