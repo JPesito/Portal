@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Scrollytelling - Perfect Morph</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --color-verde: #CEDD65;
+            --color-titulo: #E7E6E6;
+            --color-subtitulo: #646262;
+            --color-linea: #252223;
+            --color-step: #E9FB70;
+            --color-fondo: #221F1F;
+            
+            --ruler-height: 15vh; 
+            --green-line-pos: 20vh; 
+            --step-lift: 0px; 
+            
+            --station-width: 320px;
+            --font-size-title: 2rem;
+            --font-size-desc: 0.95rem;
+        }
+
+        @media (max-width: 768px) {
+            :root {
+                --ruler-height: 12vh;
+                --green-line-pos: 18vh;
+                --station-width: 260px; 
+                --font-size-title: 1.5rem;
+                --font-size-desc: 0.85rem;
+            }
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            background-color: var(--color-fondo);
+            font-family: 'Inter', sans-serif;
+            color: #fff;
+            overflow-x: hidden; 
+            height: auto; 
+            font-size: 16px; 
+        }
+
+        .scroll-container { height: 500vh; width: 100%; }
+        .timeline-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; display: flex; align-items: center; overflow: hidden; }
+        .grid-background { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: linear-gradient(var(--color-linea) 1px, transparent 1px), linear-gradient(90deg, var(--color-linea) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; }
+        .timeline-track { display: flex; align-items: center; height: 100%; padding-left: 5vw; width: max-content; position: relative; }
+
+        .timeline-ruler { position: absolute; bottom: var(--ruler-height); left: 0; width: 100%; height: 15px; z-index: 3; opacity: 0.5; background-image: repeating-linear-gradient(to right, var(--color-subtitulo) 0px, var(--color-subtitulo) 1px, transparent 1px, transparent 8px); }
+        .axis-bg-line { position: absolute; bottom: var(--ruler-height); left: 0; width: 100%; height: 1px; background-color: var(--color-linea); z-index: 0; }
+        
+        /* LÍNEA VERDE CONTINUA (Detrás de todo) */
+        .solid-green-axis { 
+            position: absolute; 
+            bottom: var(--green-line-pos); 
+            left: 0; width: 100%; height: 2px; 
+            background-color: var(--color-verde); 
+            z-index: 1; /* Nivel 1 */
+            box-shadow: 0 0 5px rgba(206, 221, 101, 0.3); 
+        }
+
+        .svg-active-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+        
+        .beam-fill { 
+            fill: url(#trailGradient); 
+            stroke: none; 
+            clip-path: url(#guillotineClip); 
+        }
+        
+        .beam-line-visible { fill: none; stroke: var(--color-verde); stroke-width: 1px; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 2px rgba(206, 221, 101, 0.8)); }
+
+        .station { position: relative; width: var(--station-width); height: 100%; flex-shrink: 0; }
+
+        .content-box, .step-line-dashed, .graph-point-group, .axis-dot, .axis-morpher {
+            opacity: 0; 
+            transition: opacity 0.1s linear; 
+        }
+
+        .step-line-dashed {
+            position: absolute; left: 50.5px; bottom: var(--green-line-pos); 
+            height: max(1px, calc((var(--nivel) - var(--green-line-pos)) + var(--step-lift) + 25px));
+            width: 1px; border-left: 1px dotted var(--color-subtitulo); z-index: 1;
+        }
+
+        .graph-point-group { position: absolute; left: 50px; bottom: calc(var(--nivel) + var(--step-lift)); width: 10px; height: 10px; z-index: 5; }
+        .graph-anchor { position: absolute; left: 50px; bottom: var(--nivel); width: 1px; height: 1px; visibility: hidden; pointer-events: none; }
+
+        .step-badge {
+            position: absolute; bottom: 25px; left: 50%; transform: translateX(-55%);
+            background-color: transparent; border: 1px solid var(--color-subtitulo); color: var(--color-subtitulo);
+            padding: 0.2rem 0.7rem; border-radius: 12px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; white-space: nowrap;
+            transition: all 0.3s ease;
+        }
+
+        .axis-dot { position: absolute; left: 51px; bottom: calc(var(--green-line-pos) - 6px); width: 8px; height: 8px; border-radius: 50%; background-color: var(--color-verde); transform: translateX(-50%) scale(0); box-shadow: 0 0 10px var(--color-verde); transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 10; }
+
+        .day-label {
+            position: absolute; bottom: calc(var(--green-line-pos) - 10vh); left: 50px; transform: translateX(-50%); 
+            font-size: 1.1rem; font-weight: 600; color: var(--color-subtitulo); white-space: nowrap; transition: color 0.3s ease, text-shadow 0.3s ease;
+        }
+        @media (max-width: 768px) { .day-label { font-size: 0.9rem; bottom: calc(var(--green-line-pos) - 30px); } }
+
+        /* EL PARCHE DE COLOR */
+        .axis-morpher { 
+            position: absolute; 
+            bottom: var(--green-line-pos); 
+            left: 51px; 
+            width: 80px; 
+            height: 60px; 
+            transform: translate(-50%, 58px); 
+            
+            z-index: 2; /* Nivel 2: Encima de la línea verde (Nivel 1) */
+            
+            /* CLAVE: Color de fondo opaco para tapar la línea recta de atrás */
+            background-color: var(--color-fondo); 
+            
+            display: flex; 
+            align-items: flex-start; 
+            overflow: visible; 
+        }
+        .axis-morpher svg { width: 100%; height: 100%; overflow: visible; display: block; }
+        
+        /* La línea del SVG se encarga de dar continuidad visual */
+        .morph-path { fill: none; stroke: var(--color-verde); stroke-width: 2px; stroke-linecap: round; stroke-linejoin: round; }
+
+        .glow-path {
+            fill: url(#bulbRadialGradient); 
+            stroke: none;
+            mix-blend-mode: screen; 
+        }
+
+        .content-box { position: absolute; left: 0; bottom: calc(var(--nivel) + 60px + var(--step-lift)); padding-right: 20px; width: 100%; }
+        .main-title { font-size: var(--font-size-title); line-height: 1.1; font-weight: 400; margin-bottom: 0.5rem; color: var(--color-titulo); }
+        .description { font-size: var(--font-size-desc); color: var(--color-subtitulo); line-height: 1.4; max-width: 90%; }
+
+        /* Activos */
+        .station.active .step-line-dashed { border-color: var(--color-verde); }
+        .station.active .step-badge { background-color: var(--color-step); border-color: var(--color-step); color: #221F1F; box-shadow: 0 0 15px rgba(233, 251, 112, 0.6); }
+        .station.active .day-label { color: var(--color-verde); text-shadow: 0 0 15px rgba(206, 221, 101, 0.6); }
+        .station.active .axis-dot { transform: translateX(-50%) scale(1); }
+        
+        .smart-tick { position: absolute; bottom: var(--ruler-height); width: 1px; height: 15px; background-color: transparent; z-index: 4; transform-origin: center center; transition: all 0.2s ease; }
+        .smart-tick.active { background-color: var(--color-verde); box-shadow: 0 0 8px var(--color-verde); transform: scaleY(1.8); }
+    </style>
+</head>
+<body>
+
+    <div class="scroll-container"></div>
+
+    <div class="timeline-wrapper" id="timelineWrapper">
+        <div class="grid-background"></div>
+
+        <div class="timeline-track" id="track">
+            <div class="timeline-ruler"></div>
+            <div class="axis-bg-line"></div>
+            
+            <svg class="svg-active-layer" id="svgActive">
+                <defs>
+                    <clipPath id="guillotineClip"><rect id="clipRect" x="0" y="0" width="0" height="100%" /></clipPath>
+                    <linearGradient id="trailGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="var(--color-verde)" stop-opacity="0.5" />
+                        <stop offset="100%" stop-color="var(--color-verde)" stop-opacity="0" />
+                    </linearGradient>
+
+                    <radialGradient id="bulbRadialGradient" cx="40" cy="0" r="40" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="var(--color-verde)" stop-opacity="0.9" /> 
+                        <stop offset="40%" stop-color="var(--color-verde)" stop-opacity="0.3" /> 
+                        <stop offset="100%" stop-color="var(--color-verde)" stop-opacity="0" />   
+                    </radialGradient>
+                </defs>
+                <path id="masterFill" class="beam-fill" d="" />
+                <path id="masterLine" class="beam-line-visible" d="" />
+            </svg>
+            
+            <div class="solid-green-axis"></div>
+            
+            <div id="smartTicksContainer"></div>
+
+            <div class="station" style="--nivel: 25%; --step-lift: 1vh;">
+                <div class="content-box">
+                    <h2 class="main-title">Discovery<br>& Strategy</h2>
+                    <p class="description">Define goals, audience, and the<br>decisions your deck must move.</p>
+                </div>
+                <div class="step-line-dashed"></div>
+                <div class="graph-anchor"></div>
+                <div class="graph-point-group"><div class="step-badge">step 1</div></div>
+                <div class="axis-morpher">
+                    <svg viewBox="0 0 80 60" preserveAspectRatio="xMidYMin meet">
+                        <path class="glow-path" d="" />
+                        <path class="morph-path" d="" />
+                    </svg>
+                </div>
+                <div class="axis-dot"></div><div class="day-label">Day 1</div>
+            </div>
+
+            <div class="station" style="--nivel: 30%; --step-lift: 0.5vh;">
+                <div class="content-box">
+                    <h2 class="main-title">Wireframing<br>& Logic</h2>
+                    <p class="description">Structure the narrative flow<br>without distractions.</p>
+                </div>
+                <div class="step-line-dashed"></div>
+                <div class="graph-anchor"></div>
+                <div class="graph-point-group"><div class="step-badge">step 2</div></div>
+                <div class="axis-morpher">
+                    <svg viewBox="0 0 80 60" preserveAspectRatio="xMidYMin meet">
+                        <path class="glow-path" d="" />
+                        <path class="morph-path" d="" />
+                    </svg>
+                </div>
+                <div class="axis-dot"></div><div class="day-label">Day 3</div>
+            </div>
+
+            <div class="station" style="--nivel: 35%; --step-lift: 1vh;">
+                <div class="content-box">
+                    <h2 class="main-title">Visual<br>Design</h2>
+                    <p class="description">High-fidelity UI, typography<br>and branding application.</p>
+                </div>
+                <div class="step-line-dashed"></div>
+                <div class="graph-anchor"></div>
+                <div class="graph-point-group"><div class="step-badge">step 3</div></div>
+                <div class="axis-morpher">
+                    <svg viewBox="0 0 80 60" preserveAspectRatio="xMidYMin meet">
+                        <path class="glow-path" d="" />
+                        <path class="morph-path" d="" />
+                    </svg>
+                </div>
+                <div class="axis-dot"></div><div class="day-label">Day 6</div>
+            </div>
+
+            <div class="station" style="--nivel: 40%; --step-lift: 1vh;">
+                <div class="content-box">
+                    <h2 class="main-title">Development<br>& Launch</h2>
+                    <p class="description">Coding the widget and<br>preparing for production.</p>
+                </div>
+                <div class="step-line-dashed"></div>
+                <div class="graph-anchor"></div>
+                <div class="graph-point-group"><div class="step-badge">step 4</div></div>
+                <div class="axis-morpher">
+                    <svg viewBox="0 0 80 60" preserveAspectRatio="xMidYMin meet">
+                        <path class="glow-path" d="" />
+                        <path class="morph-path" d="" />
+                    </svg>
+                </div>
+                <div class="axis-dot"></div><div class="day-label">Day 10</div>
+            </div>
+
+             <div class="station" style="--nivel: 70%; --step-lift: 0vh;">
+                <div class="content-box">
+                    <h2 class="main-title">Handover<br>& Support</h2>
+                    <p class="description">Final delivery and team<br>training sessions.</p>
+                </div>
+                <div class="step-line-dashed"></div>
+                <div class="graph-anchor"></div>
+                <div class="graph-point-group"><div class="step-badge">step 5</div></div>
+                <div class="axis-morpher">
+                    <svg viewBox="0 0 80 60" preserveAspectRatio="xMidYMin meet">
+                        <path class="glow-path" d="" />
+                        <path class="morph-path" d="" />
+                    </svg>
+                </div>
+                <div class="axis-dot"></div><div class="day-label">Day 14</div>
+            </div>
+
+            <div style="width: 300px; flex-shrink: 0;"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.29/bundled/lenis.min.js"></script>
+
+    <script>
+        gsap.registerPlugin(ScrollTrigger);
+
+        const lenis = new Lenis({ duration: 1.2, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), direction: 'vertical', smooth: true });
+        lenis.on('scroll', ScrollTrigger.update);
+        gsap.ticker.add((time) => lenis.raf(time * 1000));
+        gsap.ticker.lagSmoothing(0);
+
+        let stationTriggers = [];
+        let snapPoints = [];
+        let tickPositions = []; 
+        let masterPathElement; 
+
+        function initWidget() {
+            const track = document.getElementById('track');
+            const stations = document.querySelectorAll('.station');
+            const ticksContainer = document.getElementById('smartTicksContainer');
+            
+            const svgActive = document.getElementById('svgActive');
+            const masterLine = document.getElementById('masterLine');
+            const masterFill = document.getElementById('masterFill');
+            const axisEl = document.querySelector('.solid-green-axis');
+            const clipRect = document.getElementById('clipRect');
+
+            ticksContainer.innerHTML = '';
+            stationTriggers = [];
+            snapPoints = [];
+            tickPositions = [];
+
+            const width = track.scrollWidth;
+            const height = track.scrollHeight;
+            
+            svgActive.setAttribute('viewBox', `0 0 ${width} ${height}`);
+            svgActive.style.width = `${width}px`;
+
+            const dFlat = "M 0 1 L 80 1";
+            const dCurveBetter = "M 0 1 L 20 1 C 30 1 30 13 40 13 C 50 13 50 1 60 1 L 80 1";
+            
+            const dGlowFlat = "M 0 1 L 80 1 L 80 1 L 0 1 Z";
+            const dGlowCurvedRounded = dCurveBetter + " C 80 70, 0 70, 0 1 Z";
+
+            document.querySelectorAll('.morph-path').forEach(path => path.setAttribute('d', dFlat));
+            document.querySelectorAll('.glow-path').forEach(path => path.setAttribute('d', dGlowFlat));
+
+
+            const trackRect = track.getBoundingClientRect();
+            const axisRect = axisEl.getBoundingClientRect();
+            const axisY = axisRect.top - trackRect.top; 
+
+            let pathPoints = [];
+            
+            const firstDashed = stations[0].querySelector('.step-line-dashed');
+            const firstDashedRect = firstDashed.getBoundingClientRect();
+            const firstX = firstDashedRect.left - trackRect.left; 
+            const startX = firstX - 120; 
+            const startY = axisY; 
+            
+            pathPoints.push({ x: startX, y: startY });
+
+            stations.forEach((station, i) => {
+                const anchor = station.querySelector('.graph-anchor');
+                const dashedLine = station.querySelector('.step-line-dashed');
+                const rect = dashedLine.getBoundingClientRect();
+                const anchorRect = anchor.getBoundingClientRect();
+                
+                const x = rect.left - trackRect.left; 
+                const y = anchorRect.top - trackRect.top; 
+                pathPoints.push({ x: x, y: y });
+            });
+
+            let dMaster = `M ${pathPoints[0].x} ${pathPoints[0].y}`;
+            for (let i = 0; i < pathPoints.length - 1; i++) {
+                const p1 = pathPoints[i];
+                const p2 = pathPoints[i+1];
+                if (i === 0) dMaster += ` L ${p2.x} ${p2.y}`; 
+                else {
+                    const dist = (p2.x - p1.x) / 2;
+                    dMaster += ` C ${p1.x + dist} ${p1.y}, ${p2.x - dist} ${p2.y}, ${p2.x} ${p2.y}`;
+                }
+            }
+
+            masterLine.setAttribute('d', dMaster);
+            
+            const lastPoint = pathPoints[pathPoints.length - 1];
+            let dFill = dMaster + ` L ${lastPoint.x} ${axisY} L ${startX} ${axisY} Z`;
+            masterFill.setAttribute('d', dFill);
+
+            masterPathElement = masterLine; 
+
+            const totalLength = masterLine.getTotalLength();
+            gsap.set(masterLine, { strokeDasharray: totalLength, strokeDashoffset: totalLength });
+
+            clipRect.setAttribute("width", "0");
+            clipRect.setAttribute("x", "0"); 
+
+            const tempPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            
+            stations.forEach((station, i) => {
+                let dPartial = `M ${pathPoints[0].x} ${pathPoints[0].y}`;
+                for (let j = 0; j <= i; j++) {
+                    const p1 = pathPoints[j];
+                    const p2 = pathPoints[j+1];
+                    if (j === 0) dPartial += ` L ${p2.x} ${p2.y}`;
+                    else {
+                         const dist = (p2.x - p1.x) / 2;
+                         dPartial += ` C ${p1.x + dist} ${p1.y}, ${p2.x - dist} ${p2.y}, ${p2.x} ${p2.y}`;
+                    }
+                }
+                tempPath.setAttribute('d', dPartial);
+                const lenToPoint = tempPath.getTotalLength();
+
+                snapPoints.push(lenToPoint / totalLength);
+
+                const dashedLine = station.querySelector('.step-line-dashed');
+                let absoluteX = dashedLine.getBoundingClientRect().left - track.getBoundingClientRect().left;
+                let snappedX = Math.round(absoluteX / 8) * 8; 
+                const tickEl = document.createElement('div');
+                tickEl.classList.add('smart-tick');
+                tickEl.style.left = `${snappedX}px`; 
+                ticksContainer.appendChild(tickEl);
+                
+                tickPositions.push({ el: tickEl, x: snappedX });
+                
+                const morphPath = station.querySelector('.morph-path');
+                const glowPath = station.querySelector('.glow-path');
+
+                const elementsToFade = station.querySelectorAll('.content-box, .step-line-dashed, .graph-point-group, .axis-dot, .axis-morpher');
+
+                stationTriggers.push({
+                    station: station,
+                    tick: tickEl,
+                    morphPath: morphPath,
+                    glowPath: glowPath,
+                    triggerLen: lenToPoint - 0.5,
+                    stationX: absoluteX - track.getBoundingClientRect().left + 50,
+                    elementsToFade: elementsToFade
+                });
+            });
+
+            const step4Len = stationTriggers[3].triggerLen;
+            const step4Progress = step4Len / totalLength;
+
+            return { dFlat, dCurveBetter, dGlowFlat, dGlowCurvedRounded, totalLength, masterLine, step4Progress, clipRect, startX };
+        }
+
+        window.addEventListener('load', () => {
+            const metrics = initWidget();
+            const track = document.getElementById('track');
+            const trackMoveDist = track.scrollWidth - window.innerWidth;
+            
+            let tl = gsap.timeline({
+                scrollTrigger: {
+                    trigger: ".scroll-container",
+                    start: "top top",
+                    end: "bottom bottom",
+                    scrub: 1.5,
+                    invalidateOnRefresh: true,
+                    snap: { snapTo: snapPoints, duration: {min: 0.3, max: 0.8}, delay: 0.1, ease: "power3.inOut" },
+                    onUpdate: (self) => {
+                        const progress = self.progress; 
+                        const drawValue = metrics.totalLength * (1 - progress);
+                        metrics.masterLine.style.strokeDashoffset = drawValue;
+
+                        const currentLen = metrics.totalLength * progress;
+                        const point = masterPathElement.getPointAtLength(currentLen);
+                        let revealWidth = point.x;
+                        if (progress <= 0.001) revealWidth = 0;
+                        metrics.clipRect.setAttribute("width", revealWidth);
+
+                        const lightRadius = 150; 
+                        tickPositions.forEach(tickData => {
+                            const dist = Math.abs(revealWidth - tickData.x);
+                            if (dist < lightRadius) {
+                                const intensity = 1 - (dist / lightRadius);
+                                gsap.set(tickData.el, {
+                                    opacity: 0.2 + (0.8 * intensity),
+                                    height: 12 + (8 * intensity),
+                                    boxShadow: `0 0 ${10 * intensity}px var(--color-verde)`,
+                                    backgroundColor: 'var(--color-verde)'
+                                });
+                            } else {
+                                gsap.set(tickData.el, {
+                                    opacity: 0.2,
+                                    height: 12,
+                                    boxShadow: 'none',
+                                    backgroundColor: 'var(--color-subtitulo)'
+                                });
+                            }
+                        });
+
+                        let targetX = 0;
+                        if (progress > metrics.step4Progress) {
+                            const moveProgress = (progress - metrics.step4Progress) / (1 - metrics.step4Progress);
+                            targetX = -trackMoveDist * moveProgress;
+                        }
+                        gsap.set(track, { x: targetX });
+
+                        const currentDrawnLen = metrics.totalLength * progress;
+                        
+                        stationTriggers.forEach(data => {
+                            const dist = Math.abs(revealWidth - data.stationX);
+                            const safeZone = 60; 
+                            const fadeZone = 120; 
+                            
+                            let opacity = 0;
+                            if (dist < safeZone) { opacity = 1; } 
+                            else { opacity = 1 - ((dist - safeZone) / fadeZone); }
+                            opacity = Math.max(0, Math.min(1, opacity));
+                            gsap.set(data.elementsToFade, { opacity: opacity });
+
+                            const isFocused = dist < safeZone; 
+                            const isReached = currentDrawnLen >= data.triggerLen;
+
+                            if (isReached && isFocused && !data.isActive) {
+                                data.isActive = true;
+                                data.station.classList.add('active');
+                                data.tick.classList.add('active');
+                                gsap.to(data.morphPath, { attr: { d: metrics.dCurveBetter }, duration: 0.4, ease: "back.out(1.7)" });
+                                gsap.to(data.glowPath, { attr: { d: metrics.dGlowCurvedRounded }, duration: 0.4, ease: "back.out(1.7)" });
+
+                            } else if ((!isFocused || !isReached) && data.isActive) {
+                                data.isActive = false;
+                                data.station.classList.remove('active');
+                                data.tick.classList.remove('active');
+                                gsap.to(data.morphPath, { attr: { d: metrics.dFlat }, duration: 0.2, ease: "power2.out" });
+                                gsap.to(data.glowPath, { attr: { d: metrics.dGlowFlat }, duration: 0.2, ease: "power2.out" });
+                            }
+                        });
+                    }
+                }
+            });
+        });
+
+        window.addEventListener('resize', () => {
+            initWidget();
+            ScrollTrigger.refresh();
+        });
+    </script>
+</body>
+</html>
